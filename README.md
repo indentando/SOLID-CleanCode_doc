@@ -881,4 +881,527 @@ Debemos tener en mente las pruebas desde la creación del código.
 
 No aplicar el principio DRY
 
-## Principios SOLID
+# Principios SOLID
+
+> Los principios SOLID nos indican cómo organizar nuestras funciones y estructuras de datos entre componentes y cómo dichos componentes deben estar interconectados.
+> 
+
+## SRP - Single Responsibility Principle
+
+> Principio de responsabilidad única.
+> 
+
+“Nunca debería haber más de un motivo por el cual cambiar una clase o un módulo.” - Robert C. Martin
+
+### Ejemplo de SRP
+
+- Ejecución del ejemplo
+    
+    ```jsx
+    (() => {
+    
+        interface Product { 
+            id:   number;
+            name: string;
+        }
+        
+        class ProductService {
+        
+    	    private httpAdapter: Object;
+    
+    	    getProduct(id: number) {
+    		    console.log('Producto: ', {id, name: 'OLED Tv'});
+    	    }
+    	    
+    	    saveProduct(product: Product) {
+    		    console.log('Guardando en base de datos ', product);
+    	    }
+    	    
+        }
+        
+        class Mailer {
+    	    private masterEmail: string = 'a.doradonavarro@gmail.com';
+    	    
+    	    sendEmail(emailList: string[], template: 'to-clients' | 'to-admins'){
+    		    console.log('Enviando correo a los clientes');
+    	    }	    
+        }
+        
+        // Usualmente, esto es una clase para controlar la vista que es desplegada al usuario
+        // Recuerden que podemos tener muchas vistas que realicen este mismo trabajo.
+        class ProductBloc {
+        
+    	    private productService: ProductService;
+    	    private mailer: Mailer;
+    	    
+    	    constructor( productService: ProductService, mailer: Mailer ) {
+    		    this.productService = productService;
+    		    this.mailer = mailer;
+    	    }
+        
+            loadProduct( id: number ) {
+              this.productService.getProduct(id);
+            }
+        
+            saveProduct( product: Product ) {
+              // Realiza una petición para salvar en base de datos 
+              this.productService.saveProduct(product);
+            }
+        
+            notifyClients() {
+    					this.mailer.sendEmail(['a.doradonavarro@gmail.com'], 'to-clients');
+            }
+        
+            onAddToCart( productId: number ) {
+              // Agregar al carrito de compras
+              console.log('Agregando al carrito ', productId );
+            }
+        
+        }
+        
+        class cartBloc {
+    	    private itemsInCart: Object[] = [];
+    	    addToCart( productId: number) {
+    		    console.log('Agregando al carrito ', productId);
+    	    }
+        }
+        
+        const productService = new ProductService();
+        const mailer = new Mailer();
+        
+        const productBloc = new ProductBloc(productService, mailer);
+        const cartBloc = new CartBloc();
+    
+        productBloc.loadProduct(10);
+        productBloc.saveProduct({ id: 10, name: 'OLED TV' });
+        productBloc.notifyClients();
+        productBloc.onAddToCart(10);
+    
+    })();
+    ```
+    
+
+### Detectar violaciones de SRP
+
+- Nombres de clases y módulos demasiado genéricos.
+- Cambios en el código suelen afectar la clase o módulo.
+- La clase involucra múltiples capas.
+- Número elevado de importaciones.
+- Cantidad elevada de métodos públicos.
+- Excesivo número de líneas de código.
+
+## OCP - Open and close
+
+> Principio de Abierto y cerrado.
+> 
+
+Establece que las entidades de software (clases, módulos, métodos, etc.) deben estar abiertas para la extensión, pero cerradas para la modificación.
+
+El principio abierto-cerrado también se puede lograr de muchas otras maneras, incluso mediante el uso de la herencia o mediante patrones de diseño de composición como el patrón de estrategia.
+
+### Ejemplos de OCP
+
+- OPEN-CLOSE A
+    
+    ```jsx
+    import { PhotosService, PostService, TodoService } from './02-open-close-b';
+    import { HttpClient } from './02-open-close-c';
+    
+    (async () => {
+    
+    		const httpClient = new HttpClient();
+    
+        const todoService = new TodoService(httpClient);
+        const postService = new PostService(httpClient);
+        const photosService = new PhotosService(httpClient);
+    
+        const todos = await todoService.getTodoItems();
+        const posts = await postService.getPosts();
+        const photos = await photosService.getPhotos();
+        
+        console.log({ todos, posts, photos });
+        
+    })();
+    ```
+    
+- OPEN-CLOSE B
+    
+    ```jsx
+    
+    export class TodoService { 
+    
+    		constructor(private http: HttpClient) {}
+    
+        async getTodoItems() {
+            const { data } = await this.http.get('https://jsonplaceholder.typicode.com/todos/');
+            return data;
+        }
+    }
+    
+    export class PostService {
+    
+    		constructor(private http: HttpClient) {}
+    
+        async getPosts() {
+            const { data } = await this.http.get('https://jsonplaceholder.typicode.com/posts');
+            return data;
+        }
+    }
+    
+    export class PhotosService {
+    
+    		constructor(private http: HttpClient) {}
+    
+        async getPhotos() {
+            const { data } = await this.http.get('https://jsonplaceholder.typicode.com/photos');
+            return data;
+        }
+    
+    }
+    ```
+    
+- OPEN-CLOSE C
+    
+    ```jsx
+    //import axios form 'axios';
+    
+    export class HttpClient {
+    	/* Ejemplo sin axios:
+    	
+    	async get(url: string){
+    		const { data, status } = await axios.get(url);	
+    		return {data, status};
+    	}
+    	*/
+    	
+    	async get(url: string) {
+    		const resp = await fetch(url);
+    		const data = await resp.json();
+    	
+    		return { data, status: resp.status }
+    	}
+    	
+    }
+    ```
+    
+
+### Detectar violaciones de OCP
+
+- Cambios normalmente afectan a nuestra clase o módulo.
+- Cuando una clase o módulo afecta a muchas capas. (Presentación, almacenamiento, etc).
+
+## Liskov Substitution
+
+> Las funciones que utilicen puntero o referencias a clases base deben ser capaces de usar objetos de clase derivados sin saberlo. -  Robert C. Martin
+> 
+
+Siendo U un subtipo de T, cualquier instancia de T deberá poder ser sustituida por cualquier instancia de U sin alterar las propiedades del sistema.
+
+### Ejercicio de Substitución de Liskov
+
+- Ejercicio A
+    
+    ```tsx
+    import { Tesla, Audi, Toyota, Honda } from './03-liskov-b';
+    
+    (() => {
+        
+        const printCarSeats = ( cars: Vehicle[] ) => {
+        
+    	    cars.forEach( car => {
+    		    console.log( car.constructor.name, car.getNumberOfSeats() );
+    	    }
+    	    
+        }
+        
+        const cars = [
+            new Tesla(7),
+            new Audi(2),
+            new Toyota(5),
+            new Honda(5),
+        ];
+        
+        printCarSeats( cars );
+        
+    })();
+    ```
+    
+- Ejercicio B
+    
+    ```tsx
+    export abstract class Vehicle {
+    	abstract getNumberOfSeats(): number;
+    }
+    
+    export class Tesla extends Vehicle{
+    
+        constructor( private numberOfSeats: number ) {
+    	    super();
+        }
+    
+        getNumberOfSeats() {
+            return this.numberOfSeats;
+        }
+    }
+    
+    export class Audi extends Vehicle {
+    
+        constructor( private numberOfSeats: number ) {}
+    
+        getNumberOfSeats() {
+            return this.numberOfSeats;
+        }
+    }
+    
+    export class Toyota extends Vehicle {
+    
+        constructor( private numberOfSeats: number ) {}
+    
+        getNumberOfSeats() {
+            return this.numberOfSeats;
+        }
+    }
+    
+    export class Honda extends Vehicle {
+    
+        constructor( private numberOfSeats: number ) {}
+    
+        getNumberOfSeats() {
+            return this.numberOfSeats;
+        }
+    }
+    ```
+    
+
+## Interface Segregation
+
+> Los clientes no deberían estar obligado a depender de interfaces que no utilizan. -  Robert C. Martin
+> 
+
+### Ejercicio de segregación de interfaz
+
+- Ejercicio Interface Segregation - Sin segregación
+    
+    ```tsx
+    interface Bird {
+    	fly(): void;
+    	eat(): void;
+    	run(): void;
+    }
+    
+    class Tucan implements Bidr{
+    	public fly() {}
+    	public eat() {}
+    	public run() {}
+    }
+    
+    class Huminbird implements Bird{
+    	public fly() {}
+    	public eat() {}
+    	public run() {}
+    }
+    
+    class Ostrich implements Bird{
+    	public eat() {}
+    	public run() {}
+    }
+    
+    class Penguin implements Bird{
+    	public eat() {}
+    	public run() {}
+    	public swim() {}
+    }
+    ```
+    
+- Ejercicio Interface Segregation - Con segregación
+    
+    ```tsx
+    interface Bird {
+    	eat(): void;
+    }
+    
+    interface FlyingBird {
+    	fly(): number;
+    }
+    
+    interface RunningBird {
+    	run(): void;
+    }
+    
+    interface SwimmerBird {
+    	swim(): void;
+    }
+    
+    class Tucan implements Bird, FlyingBird{
+    	public fly() { return 100; }
+    	public eat() {}
+    }
+    
+    class Huminbird implements Bird, FlyingBird{
+    	public fly() { return 200; }
+    	public eat() {}
+    }
+    
+    class Ostrich implements Bird, RunningBird{
+    	public eat() {}
+    	public run() {}
+    }
+    
+    class Penguin implements Bird, SwimmerBird{
+    	public eat() {}
+    	public swim() {}
+    }
+    ```
+    
+
+### Detectar violaciones ISP
+
+- Si las interfaces que diseñamos nos obligan a violar los principios de responsabilidad única y substitución de Liskov.
+
+## Dependency Inversion
+
+> Los módulos de alto nivel no deben depender de módulos de bajo nivel. Ambos deben depender de abstracciones. Las abstracciones no deben depender de concreciones. Los detalles deben depender de abstracciones - Robert C. Martin
+> 
+- Los modulos de alto nivel no deberían depender de módulos de bajo nivel.
+- Ambos deberían depender de abstracciones.
+- Las abstracciones no deberían depender de detalles.
+- Los detalles deberán depender de abstracciones.
+
+Uno de los motivos más importante por el cual las reglas de negocio o capa de dominio deben depender de estas y no de concreciones es que aumenta su tolerancia al cambio.
+
+**¿Por qué obtenemos este beneficio?**
+
+- Cada cambio en un componente abstracto implica un cambio en su implementación.
+- Por el contrario, los cambios en implementaciones concretas, la mayoría de las veces no requieren cambios en las interfaces que implementa.
+
+**Inyección de dependencias**
+
+- Dependencia en programación significa que un módulo o componente requiere de otro para poder realizar su trabajo.
+- En algún momento nuestro programa o aplicación llegará a estar formado por muchos módulos. Cuando esto pase, es cuando debemos usar inyección de dependencias.
+
+### Ejercicio Inversión de dependencias
+
+- Dependency A
+    
+    ```tsx
+    import { PostService } from './05-dependency-b';
+    import { LocalDataBaseService, JsonDataBaseService } from "./05-dependency-c";
+    
+    // Main
+    (async () => {
+    		const provider = new JsonDataBaseService();
+    
+        const postService = new PostService(provider);
+        
+        const posts = await postService.getPosts();
+        
+        console.log({ posts })
+    
+    })();
+    ```
+    
+- Dependency B
+    
+    ```tsx
+    import { LocalDataBaseService, JsonDataBaseService } from "./05-dependency-c";
+    
+    interface Post {
+        body:   string;
+        id:     number;
+        title:  string;
+        userId: number;
+    }
+    
+    export class PostService {
+    
+        private posts: Post[] = [];
+        constructor( private postProvider: PostProvider) {}
+    
+        async getPosts() {
+            this.posts = await this.postProvider.getPosts();
+    
+            return this.posts;
+        }
+    }
+    ```
+    
+- Dependency C
+    
+    ```tsx
+    import localPosts from '../data/local-database.json';
+    
+    export abstract class PostProvider {
+    	abstract getPosts(): Promise<Post[]>
+    }
+    
+    export class LocalDataBaseService implements PostProvider {
+    
+        async getPosts() {
+            return [
+                {
+                    'userId': 1,
+                    'id': 1,
+                    'title': 'sunt aut facere repellat provident occaecati excepturi optio reprehenderit',
+                    'body': 'quia et suscipit suscipit recusandae consequuntur expedita et cum reprehenderit molestiae ut ut quas totam nostrum rerum est autem sunt rem eveniet architecto'
+                },
+                {
+                    'userId': 1,
+                    'id': 2,
+                    'title': 'qui est esse',
+                    'body': 'est rerum tempore vitae sequi sint nihil reprehenderit dolor beatae ea dolores neque fugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis qui aperiam non debitis possimus qui neque nisi nulla'
+                }]
+        }
+    
+    }
+    
+    export class JsonDataBaseService implements PostProviders {
+    	async getPosts(){
+    		return localPosts;
+    	}
+    }
+    
+    export class WebApiPostService implements PostProvider {
+    	async getPosts(): Promise<Post[]> {
+    		const resp = await fetch('https://jsonplaceholder.typicode.com/posts');
+    		return await resp.json();
+    	
+    	}
+    }
+    ```
+    
+- Local database
+    
+    ```json
+    [
+      {
+        "userId": 1,
+        "id": 1,
+        "title": "sunt aut facere repellat provident occaecati excepturi optio reprehenderit",
+        "body": "quia et suscipit suscipit recusandae consequuntur expedita et cum reprehenderit molestiae ut ut quas totam nostrum rerum est autem sunt rem eveniet architecto"
+      },
+      {
+        "userId": 1,
+        "id": 2,
+        "title": "qui est esse",
+        "body": "est rerum tempore vitae sequi sint nihil reprehenderit dolor beatae ea dolores neque fugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis qui aperiam non debitis possimus qui neque nisi nulla"
+      },
+      {
+        "userId": 1,
+        "id": 3,
+        "title": "ea molestias quasi exercitationem repellat qui ipsa sit aut",
+        "body": "et iusto sed quo iure voluptatem occaecati omnis eligendi aut ad voluptatem doloribus vel accusantium quis pariatur molestiae porro eius odio et labore et velit aut"
+      },
+      {
+        "userId": 1,
+        "id": 4,
+        "title": "eum et est occaecati",
+        "body": "ullam et saepe reiciendis voluptatem adipisci sit amet autem assumenda provident rerum culpa quis hic commodi nesciunt rem tenetur doloremque ipsam iure quis sunt voluptatem rerum illo velit"
+      },
+      {
+        "userId": 1,
+        "id": 5,
+        "title": "nesciunt quas odio",
+        "body": "repudiandae veniam quaerat sunt sed alias aut fugiat sit autem sed est voluptatem omnis possimus esse voluptatibus quis est aut tenetur dolor neque"
+      }
+    ]
+    ```
